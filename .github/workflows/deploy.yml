@@ -1,0 +1,72 @@
+name: CI - Test and Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Test backend starts
+        run: |
+          cd backend
+          python -c "from app.main import app; print('Backend OK')"
+        env:
+          GEMINI_API_KEY: test_key
+          NEWS_API_KEY: test_key
+          MONGODB_URI: mongodb://localhost:27017/testdb
+          ALLOWED_ORIGINS: http://localhost:5173
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Build success
+        run: echo "Frontend build successful!"
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t ai-news-backend ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t ai-news-frontend ./frontend
+
+      - name: All builds successful
+        run: echo "Docker images built successfully!"
+        
